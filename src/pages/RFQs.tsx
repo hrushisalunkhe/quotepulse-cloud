@@ -61,7 +61,6 @@ const RFQs = () => {
           quotes(id, amount, status),
           rfq_participants(id, status)
         `)
-        .or(`created_by.eq.${user.id},rfq_participants.vendor_id.eq.${user.id}`)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
