@@ -4,15 +4,30 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, FileText, TrendingUp, Users, Clock, CheckCircle2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import type { User } from "@supabase/supabase-js";
+import { 
+  Plus, 
+  FileText, 
+  DollarSign, 
+  Users, 
+  TrendingUp, 
+  Bell,
+  User,
+  LogOut,
+  Settings,
+  Clock,
+  CheckCircle2
+} from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import NotificationCenter from "@/components/NotificationCenter";
+import { format } from "date-fns";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState<User | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const { user, userRole, signOut } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(3); // Mock unread count
   const [stats, setStats] = useState({
     activeRfqs: 0,
     pendingQuotes: 0,
@@ -21,32 +36,13 @@ const Dashboard = () => {
   });
 
   useEffect(() => {
-    checkAuth();
-    loadDashboardData();
-  }, []);
-
-  const checkAuth = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      navigate("/auth");
-      return;
+    if (user) {
+      loadDashboardData();
     }
-    setUser(user);
-
-    // Get user role
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .single();
-    
-    setUserRole(roleData?.role || null);
-    setLoading(false);
-  };
+  }, [user]);
 
   const loadDashboardData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       // Load RFQ stats
@@ -78,12 +74,9 @@ const Dashboard = () => {
       });
     } catch (error) {
       console.error("Error loading dashboard data:", error);
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    navigate("/");
   };
 
   if (loading) {
@@ -95,38 +88,70 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">V</span>
-            </div>
+    <>
+      <div className="min-h-screen bg-background">
+        {/* Header */}
+        <header className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="container mx-auto px-4 h-16 flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-bold">VendorWorld</h1>
-              <p className="text-sm text-muted-foreground">Dashboard</p>
+              <h1 className="text-2xl font-bold">VendorWorld</h1>
+              <p className="text-sm text-muted-foreground">
+                Welcome back, {user?.email}
+              </p>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              {/* Notifications */}
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="relative"
+                onClick={() => setNotificationOpen(true)}
+              >
+                <Bell className="h-4 w-4" />
+                {unreadCount > 0 && (
+                  <Badge 
+                    variant="destructive" 
+                    className="absolute -top-1 -right-1 h-5 w-5 text-xs flex items-center justify-center p-0"
+                  >
+                    {unreadCount}
+                  </Badge>
+                )}
+              </Button>
+              
+              {/* Role Badge */}
+              {userRole && (
+                <Badge variant={userRole === 'vendor' ? 'default' : 'secondary'}>
+                  {userRole === 'vendor' ? 'Vendor' : 'Client'}
+                </Badge>
+              )}
+              
+              {/* Profile Settings */}
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => navigate("/profile")}
+              >
+                <User className="h-4 w-4" />
+              </Button>
+              
+              {/* Sign Out */}
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={signOut}
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
             </div>
           </div>
-          
-          <div className="flex items-center space-x-4">
-            {userRole && (
-              <Badge variant="secondary" className="capitalize">
-                {userRole}
-              </Badge>
-            )}
-            <Button variant="outline" onClick={handleSignOut}>
-              Sign Out
-            </Button>
-          </div>
-        </div>
-      </header>
+        </header>
 
       <div className="container mx-auto px-4 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold mb-2">
-            Welcome back, {user?.user_metadata?.full_name || user?.email}!
+            Welcome back, {user?.email}!
           </h2>
           <p className="text-muted-foreground">
             Here's what's happening with your vendor management today.
@@ -240,8 +265,15 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
+        </div>
       </div>
-    </div>
+
+      {/* Notification Center */}
+      <NotificationCenter 
+        isOpen={notificationOpen} 
+        onClose={() => setNotificationOpen(false)} 
+      />
+    </>
   );
 };
 
