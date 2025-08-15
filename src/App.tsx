@@ -11,6 +11,7 @@ import CreateRFQ from "./pages/CreateRFQ";
 import RFQDetail from "./pages/RFQDetail";
 import QuoteSubmission from "./pages/QuoteSubmission";
 import ParticipantManagement from "./pages/ParticipantManagement";
+import Reports from "./pages/Reports";
 import ProfileSettings from "./pages/ProfileSettings";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -49,6 +50,11 @@ const App = () => (
           <Route path="/rfqs/:id/quote" element={
             <ProtectedRoute>
               <QuoteSubmission />
+            </ProtectedRoute>
+          } />
+          <Route path="/reports" element={
+            <ProtectedRoute>
+              <Reports />
             </ProtectedRoute>
           } />
           <Route path="/profile" element={
