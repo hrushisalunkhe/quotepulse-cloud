@@ -47,8 +47,14 @@ const CreateRFQ = () => {
 
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      // Check authentication status
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to create an RFQ.",
+          variant: "destructive",
+        });
         navigate("/auth");
         return;
       }
@@ -60,12 +66,15 @@ const CreateRFQ = () => {
           description: formData.description.trim() || null,
           due_date: formData.due_date?.toISOString() || null,
           status,
-          created_by: user.id,
+          created_by: session.user.id,
         })
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase error:", error);
+        throw error;
+      }
 
       toast({
         title: "Success",
@@ -73,11 +82,11 @@ const CreateRFQ = () => {
       });
 
       navigate(`/rfqs/${data.id}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating RFQ:", error);
       toast({
         title: "Error",
-        description: "Failed to create RFQ. Please try again.",
+        description: error.message || "Failed to create RFQ. Please try again.",
         variant: "destructive",
       });
     } finally {
