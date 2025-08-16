@@ -13,6 +13,7 @@ import QuoteSubmission from "./pages/QuoteSubmission";
 import ParticipantManagement from "./pages/ParticipantManagement";
 import Reports from "./pages/Reports";
 import ProfileSettings from "./pages/ProfileSettings";
+import VendorDirectory from "./pages/VendorDirectory";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -65,6 +66,11 @@ const App = () => (
           <Route path="/rfqs/:id/participants" element={
             <ProtectedRoute>
               <ParticipantManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/vendors" element={
+            <ProtectedRoute>
+              <VendorDirectory />
             </ProtectedRoute>
           } />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

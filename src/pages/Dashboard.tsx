@@ -242,12 +242,36 @@ const Dashboard = () => {
                 <Button 
                   variant="outline" 
                   className="w-full justify-start"
-                  onClick={() => navigate("/quotes")}
+                  onClick={() => navigate("/rfqs")}
                 >
                   <TrendingUp className="mr-2 h-4 w-4" />
-                  Manage Quotes
+                  Browse Available RFQs
                 </Button>
               )}
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => navigate("/reports")}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                View Reports
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => navigate("/profile")}
+              >
+                <Settings className="mr-2 h-4 w-4" />
+                Profile Settings
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => navigate("/vendors")}
+              >
+                <Users className="mr-2 h-4 w-4" />
+                Vendor Directory
+              </Button>
             </CardContent>
           </Card>
 

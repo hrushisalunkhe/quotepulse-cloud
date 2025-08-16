@@ -51,8 +51,8 @@ const Index = () => {
                 Start Free Trial <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
-            <Button size="lg" variant="outline">
-              Watch Demo
+            <Button size="lg" variant="outline" onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}>
+              Learn More
             </Button>
           </div>
           
