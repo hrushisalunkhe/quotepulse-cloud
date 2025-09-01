@@ -71,8 +71,8 @@ const RFQs = () => {
         // Clients see their own RFQs
         query = query.eq("created_by", user.id);
       } else if (userRole === 'vendor') {
-        // Vendors see open RFQs and RFQs they're participating in
-        // The RLS policy handles this, so we don't need additional filters
+        // Vendors see all open RFQs (RLS policy ensures they can only see open ones)
+        // No additional filter needed as RLS handles access control
       }
 
       const { data: rfqData, error } = await query.order("created_at", { ascending: false });

@@ -75,7 +75,7 @@ const Dashboard = () => {
         // Vendor stats - available RFQs and their quotes
         const { data: rfqData, error: rfqError } = await supabase
           .from("rfqs")
-          .select("status")
+          .select("id, status, title")
           .eq("status", "open");
 
         if (rfqError) throw rfqError;
