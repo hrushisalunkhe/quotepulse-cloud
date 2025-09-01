@@ -87,13 +87,21 @@ const Dashboard = () => {
 
         if (quoteError) throw quoteError;
 
+        // Count total vendors in system (same as for clients)
+        const { data: vendorData, error: vendorError } = await supabase
+          .from("user_roles")
+          .select("id")
+          .eq("role", "vendor");
+
+        if (vendorError) throw vendorError;
+
         const pendingQuotes = quoteData?.filter(quote => quote.status === 'draft').length || 0;
         const submittedQuotes = quoteData?.filter(quote => quote.status === 'submitted').length || 0;
 
         setStats({
           activeRfqs: rfqData?.length || 0, // Available RFQs to bid on
           pendingQuotes,
-          totalVendors: 0, // Not relevant for vendors
+          totalVendors: vendorData?.length || 0,
           completedRfqs: submittedQuotes // Completed quotes for vendors
         });
       }
@@ -215,20 +223,18 @@ const Dashboard = () => {
             </Card>
           )}
 
-          {userRole === 'client' && (
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Vendors</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalVendors}</div>
-                <p className="text-xs text-muted-foreground">
-                  In the platform
-                </p>
-              </CardContent>
-            </Card>
-          )}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Vendors</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.totalVendors}</div>
+              <p className="text-xs text-muted-foreground">
+                In the platform
+              </p>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
