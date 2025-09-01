@@ -36,42 +36,67 @@ const Dashboard = () => {
   });
 
   useEffect(() => {
-    if (user) {
+    if (user && userRole) {
       loadDashboardData();
     }
-  }, [user]);
+  }, [user, userRole]);
 
   const loadDashboardData = async () => {
     try {
-      if (!user) return;
+      if (!user || !userRole) return;
 
-      // Load RFQ stats
-      const { data: rfqData, error: rfqError } = await supabase
-        .from("rfqs")
-        .select("status")
-        .eq("created_by", user.id);
+      if (userRole === 'client') {
+        // Client stats - their own RFQs
+        const { data: rfqData, error: rfqError } = await supabase
+          .from("rfqs")
+          .select("status")
+          .eq("created_by", user.id);
 
-      if (rfqError) throw rfqError;
+        if (rfqError) throw rfqError;
 
-      const activeRfqs = rfqData?.filter(rfq => rfq.status === 'open').length || 0;
-      const completedRfqs = rfqData?.filter(rfq => ['closed', 'awarded'].includes(rfq.status)).length || 0;
+        const activeRfqs = rfqData?.filter(rfq => rfq.status === 'open').length || 0;
+        const completedRfqs = rfqData?.filter(rfq => ['closed', 'awarded'].includes(rfq.status)).length || 0;
 
-      // Load quotes stats
-      const { data: quoteData, error: quoteError } = await supabase
-        .from("quotes")
-        .select("status, rfq_id")
-        .eq("vendor_id", user.id);
+        // Count total vendors in system
+        const { data: vendorData, error: vendorError } = await supabase
+          .from("user_roles")
+          .select("id")
+          .eq("role", "vendor");
 
-      if (quoteError) throw quoteError;
+        if (vendorError) throw vendorError;
 
-      const pendingQuotes = quoteData?.filter(quote => quote.status === 'draft').length || 0;
+        setStats({
+          activeRfqs,
+          pendingQuotes: 0, // Not relevant for clients
+          totalVendors: vendorData?.length || 0,
+          completedRfqs
+        });
+      } else {
+        // Vendor stats - available RFQs and their quotes
+        const { data: rfqData, error: rfqError } = await supabase
+          .from("rfqs")
+          .select("status")
+          .eq("status", "open");
 
-      setStats({
-        activeRfqs,
-        pendingQuotes,
-        totalVendors: 0, // Will implement vendor counting later
-        completedRfqs
-      });
+        if (rfqError) throw rfqError;
+
+        const { data: quoteData, error: quoteError } = await supabase
+          .from("quotes")
+          .select("status, rfq_id")
+          .eq("vendor_id", user.id);
+
+        if (quoteError) throw quoteError;
+
+        const pendingQuotes = quoteData?.filter(quote => quote.status === 'draft').length || 0;
+        const submittedQuotes = quoteData?.filter(quote => quote.status === 'submitted').length || 0;
+
+        setStats({
+          activeRfqs: rfqData?.length || 0, // Available RFQs to bid on
+          pendingQuotes,
+          totalVendors: 0, // Not relevant for vendors
+          completedRfqs: submittedQuotes // Completed quotes for vendors
+        });
+      }
     } catch (error) {
       console.error("Error loading dashboard data:", error);
     } finally {
@@ -162,52 +187,60 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active RFQs</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                {userRole === 'client' ? 'Active RFQs' : 'Available RFQs'}
+              </CardTitle>
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.activeRfqs}</div>
               <p className="text-xs text-muted-foreground">
-                Currently seeking quotes
+                {userRole === 'client' ? 'Currently seeking quotes' : 'Open for bidding'}
               </p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Quotes</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.pendingQuotes}</div>
-              <p className="text-xs text-muted-foreground">
-                Awaiting submission
-              </p>
-            </CardContent>
-          </Card>
+          {userRole === 'vendor' && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Pending Quotes</CardTitle>
+                <Clock className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.pendingQuotes}</div>
+                <p className="text-xs text-muted-foreground">
+                  Awaiting submission
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {userRole === 'client' && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Vendors</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalVendors}</div>
+                <p className="text-xs text-muted-foreground">
+                  In the platform
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Vendors</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalVendors}</div>
-              <p className="text-xs text-muted-foreground">
-                In your network
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Completed RFQs</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                {userRole === 'client' ? 'Completed RFQs' : 'Submitted Quotes'}
+              </CardTitle>
               <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.completedRfqs}</div>
               <p className="text-xs text-muted-foreground">
-                Successfully closed
+                {userRole === 'client' ? 'Successfully closed' : 'Quotes submitted'}
               </p>
             </CardContent>
           </Card>
@@ -223,31 +256,23 @@ const Dashboard = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button 
-                className="w-full justify-start" 
-                onClick={() => navigate("/rfqs/create")}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Create New RFQ
-              </Button>
+              {userRole === 'client' && (
+                <Button 
+                  className="w-full justify-start" 
+                  onClick={() => navigate("/rfqs/create")}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create New RFQ
+                </Button>
+              )}
               <Button 
                 variant="outline" 
                 className="w-full justify-start"
                 onClick={() => navigate("/rfqs")}
               >
                 <FileText className="mr-2 h-4 w-4" />
-                View All RFQs
+                {userRole === 'client' ? 'View My RFQs' : 'Browse Available RFQs'}
               </Button>
-              {userRole === 'vendor' && (
-                <Button 
-                  variant="outline" 
-                  className="w-full justify-start"
-                  onClick={() => navigate("/rfqs")}
-                >
-                  <TrendingUp className="mr-2 h-4 w-4" />
-                  Browse Available RFQs
-                </Button>
-              )}
               <Button 
                 variant="outline" 
                 className="w-full justify-start"
@@ -264,14 +289,16 @@ const Dashboard = () => {
                 <Settings className="mr-2 h-4 w-4" />
                 Profile Settings
               </Button>
-              <Button 
-                variant="outline" 
-                className="w-full justify-start"
-                onClick={() => navigate("/vendors")}
-              >
-                <Users className="mr-2 h-4 w-4" />
-                Vendor Directory
-              </Button>
+              {userRole === 'client' && (
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => navigate("/vendors")}
+                >
+                  <Users className="mr-2 h-4 w-4" />
+                  Vendor Directory
+                </Button>
+              )}
             </CardContent>
           </Card>
 

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Plus, Search, Calendar, DollarSign, Users, Eye } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { useAuth } from "@/hooks/useAuth";
 
 interface RFQ {
   id: string;
@@ -30,17 +31,21 @@ interface RFQ {
 
 const RFQs = () => {
   const navigate = useNavigate();
+  const { user, userRole } = useAuth();
   const [rfqs, setRfqs] = useState<RFQ[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
 
   useEffect(() => {
-    checkAuthAndLoadRFQs();
-  }, []);
+    if (user && userRole) {
+      loadRFQs();
+    } else if (user === null) {
+      navigate("/auth");
+    }
+  }, [user, userRole]);
 
   const checkAuthAndLoadRFQs = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       navigate("/auth");
       return;
@@ -50,18 +55,27 @@ const RFQs = () => {
 
   const loadRFQs = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user || !userRole) return;
 
-      // Load RFQs where user is either creator or participant
-      const { data: rfqData, error } = await supabase
+      let query = supabase
         .from("rfqs")
         .select(`
           *,
-          quotes(id, amount, status),
-          rfq_participants(id, status)
-        `)
-        .order("created_at", { ascending: false });
+          quotes(id, amount, status, vendor_id),
+          rfq_participants(id, status, vendor_id),
+          profiles!rfqs_created_by_fkey(id, full_name, company_name)
+        `);
+
+      // Different queries based on user role
+      if (userRole === 'client') {
+        // Clients see their own RFQs
+        query = query.eq("created_by", user.id);
+      } else if (userRole === 'vendor') {
+        // Vendors see open RFQs and RFQs they're participating in
+        // The RLS policy handles this, so we don't need additional filters
+      }
+
+      const { data: rfqData, error } = await query.order("created_at", { ascending: false });
 
       if (error) throw error;
 
@@ -114,15 +128,24 @@ const RFQs = () => {
               ← Back to Dashboard
             </Button>
             <div>
-              <h1 className="text-xl font-bold">RFQ Management</h1>
-              <p className="text-sm text-muted-foreground">Manage your requests for quotation</p>
+              <h1 className="text-xl font-bold">
+                {userRole === 'client' ? 'My RFQs' : 'Available RFQs'}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {userRole === 'client' 
+                  ? 'Manage your requests for quotation' 
+                  : 'Browse and respond to available RFQs'
+                }
+              </p>
             </div>
           </div>
           
-          <Button onClick={() => navigate("/rfqs/create")}>
-            <Plus className="mr-2 h-4 w-4" />
-            Create RFQ
-          </Button>
+          {userRole === 'client' && (
+            <Button onClick={() => navigate("/rfqs/create")}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create RFQ
+            </Button>
+          )}
         </div>
       </header>
 
@@ -158,12 +181,15 @@ const RFQs = () => {
           <Card>
             <CardContent className="py-12 text-center">
               <div className="text-muted-foreground mb-4">
-                {searchTerm || selectedStatus !== "all" ? "No RFQs match your filters" : "No RFQs found"}
+                {searchTerm || selectedStatus !== "all" ? "No RFQs match your filters" : 
+                 userRole === 'client' ? "No RFQs found" : "No available RFQs to bid on"}
               </div>
-              <Button onClick={() => navigate("/rfqs/create")}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Your First RFQ
-              </Button>
+              {userRole === 'client' && (
+                <Button onClick={() => navigate("/rfqs/create")}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Your First RFQ
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (
@@ -203,7 +229,7 @@ const RFQs = () => {
                       {rfq.quotes?.length || 0} quotes received
                     </div>
                     
-                    <div className="pt-2">
+                    <div className="pt-2 space-y-2">
                       <Button 
                         variant="outline" 
                         size="sm" 
@@ -213,6 +239,15 @@ const RFQs = () => {
                         <Eye className="mr-2 h-4 w-4" />
                         View Details
                       </Button>
+                      {userRole === 'vendor' && rfq.status === 'open' && (
+                        <Button 
+                          size="sm" 
+                          className="w-full"
+                          onClick={() => navigate(`/rfqs/${rfq.id}/quote`)}
+                        >
+                          Submit Quote
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>
